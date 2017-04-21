@@ -3,7 +3,6 @@ import string
 import sys
 import time
 import random
-import itertools
 
 
 # Function used to read a db file. encoding changed to utf-8-sig
@@ -30,33 +29,41 @@ def write(record):
         writer.writerow(row)
 
 
-# funct. used to find a record in db. Key is defining what we are looking for,
-# value is what we expect to find.
-# returns all records in original form
+# function used to find a record in db. Key is defining by what
+# we are searching. Returns all matching records in original form:
 # (list of touples, every touple contain two other touples)
-def find(key, value):
+def find(key):
+    keys = {2: "artist's name", 3: "year of release", 4: "album's name",
+            5: "genre", 6: "fragment of album name",
+            8: "genre", 9: "artist's name"}
     music = read()
     result = []
-    if key == 'artist':
-        for record in music:
-            if record[0][0].lower() == value.lower():
-                result.append(record)
-    elif key == 'year':
-        for record in music:
-            if record[1][0].lower() == value.lower():
-                result.append(record)
-    elif key == 'album':
-        for record in music:
-            if record[0][1].lower() == value.lower():
-                result.append(record)
-    elif key == 'genre':
-        for record in music:
-            if record[1][1].lower() == value.lower():
-                result.append(record)
-    elif key == 'letter':
-        for record in music:
-            if value.lower() in record[0][1].lower():
-                result.append(record)
+    try:
+        value = input("Enter " + keys[key] + ": ")
+        if key == 2 or key == 9:
+            for record in music:
+                if record[0][0].lower() == value.lower():
+                    result.append(record)
+        elif key == 3:
+            for record in music:
+                if record[1][0].lower() == value.lower():
+                    result.append(record)
+        elif key == 4:
+            for record in music:
+                if record[0][1].lower() == value.lower():
+                    result.append(record)
+        elif key == 5 or key == 8:
+            for record in music:
+                if record[1][1].lower() == value.lower():
+                    result.append(record)
+        elif key == 6:
+            for record in music:
+                if value.lower() in record[0][1].lower():
+                    result.append(record)
+    except (KeyboardInterrupt, EOFError):
+        sys.exit("\nYou have exited a collector")
+    if result == []:
+        print("\nNo matching albums")
     return result
 
 
@@ -79,8 +86,8 @@ def is_already_in_collection(name):
 
 
 # joins record (multitupeled tuple of list or tuples -
-# whatever until it's only 3 levels deep) to a string,
-# and formats it to nicer looking one when printed
+# whatever, until it's only 3 levels deep) to a string,
+# and formats it to nicer looking one for printing
 def join_record(record):
     row = []
     for item in record:
@@ -120,10 +127,10 @@ def time_input_guide():
             loop = True
         except (KeyboardInterrupt, EOFError):
             sys.exit("\nYou have exited a collector")
-    if len(time[-1]) == 1:
+    if len(time[-1]) == 1:  # count backward to handle both HH:MM:SS and MM:SS
         time[-1] = '0' + time[-1]
     if len(time) == 3:
-        if int(time[-3]) == 0:  # counting list from behind to handle both HH:MM:SS and MM:SS
+        if int(time[-3]) == 0:
             del time[-3]  # deleting HH when 0
         else:
             if len(time[-2]) == 1:  # formating M to MM only when H egsist
@@ -168,88 +175,52 @@ while True:  # program main loop.
                 print("\nSuccessfully added!")
             print(join_record((new_name, new_information)))  # printing added
 
-        elif action == "2":  # searching by appellation
-            expected = input("\nEnter Artist name: ")
-            result = find('artist', expected)
-            if result == []:
-                print("\nNo matching albums")
-            else:
-                for record in result:
-                    print(join_record(record))
+        #  all searching options works on one alghoritm. see funtion comment
+        elif action in ["2", "3", "4", "5", "6"]:  #
+            for record in find(int(action)):
+                print(join_record(record))
 
-        # show all avaible appelations in alphabetical order
-        elif action == "3":
-            expected = input("\nEnter year of release: ")
-            result = find('year', expected)
-            if result == []:
-                print("\nNo matching albums")
-            else:
-                for record in result:
-                    print(join_record(record))
-
-        elif action == "4":  # searching appelation by first letter
-            expected = input("\nEnter album name: ")
-            result = find('album', expected)
-            if result == []:
-                print("\nNo matching albums")
-            else:
-                found_artists = []
-                for record in result:
-                    if record[0][0] not in found_artists:
-                        found_artists.append(record[0][0])
-                for item in found_artists:
-                    print(item)
-
-        elif action == "5":
-            expected = input("\nEnter fragment of album name: ")
-            result = find('letter', expected)
-            if result == []:
-                print("\nNo matching albums")
-            else:
-                for record in result:
-                    print(join_record(record))
-
-        elif action == "6":
-            expected = input("\nEnter genre: ")
-            result = find('genre', expected)
-            if result == []:
-                print("\nNo matching albums")
-            else:
-                for record in result:
-                    print(join_record(record))
-
-        elif action == "7":
+        elif action == "7":  # printing all albums with added age of album
             music = read()
             actual_year = int(time.strftime("%Y"))
             for record in music:
                 try:
-                    print(join_record(record[0]), "-", actual_year - int(record[1][0]), "yo")
+                    print(join_record(record[0]), "-",
+                          actual_year - int(record[1][0]), "yo")
                 except ValueError:
                     print(join_record(record[0]), "- Wrong year of release")
 
+        # random album by genre. Uses find(),
+        # than chose random from result list
         elif action == "8":
-            expected = input("\nEnter a genre: ")
-            result = find('genre', expected)
-            if result == []:
-                print("\nNo matching albums")
-            else:
+            result = find(int(action))
+            try:
                 print(join_record(random.choice(result)))
+            except(ValueError, IndexError):
+                pass
 
+        # number of albums by artist. Uses find(),
+        # than print a len of result list
         elif action == "9":
-            expected = input("\nEnter Artist name: ")
-            result = find('artist', expected)
-            print(expected, ":", len(result), "album(s)")
+            result = find(int(action))
+            if len(result) > 0:
+                print(len(result), "album(s)")
 
-        elif action.lower() == "m":  # printing menu
-            print(menu)
-
+        # finds a longest album.
+        # first make a tuple (orginal record, length of album in sec.)
+        # than sort by length, and returns orginal record of sorted tuple
         elif action == "10":
             music = read()
             music_sort = []
             for record in music:
-                music_sort.append((record, sum(int(x) * 60 ** i for i, x in enumerate(reversed(record[1][2].split(':'))))))
+                music_sort.append(
+                      (record, sum(int(x) * 60 ** i for i, x in
+                       enumerate(reversed(record[1][2].split(':'))))))
             music_sort = sorted(music_sort, key=lambda x: x[1])
             print(join_record(music_sort[-1][0]))
+
+        elif action.lower() == "m":  # printing menu
+            print(menu)
 
         elif action == "0":  # goodbye
             sys.exit("\nYou have exited a collector")
