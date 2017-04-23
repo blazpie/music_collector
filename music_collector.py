@@ -29,12 +29,42 @@ def write(record):
         writer.writerow(row)
 
 
+# Function used to add new album to collection.
+# First checks if it's not in collection,
+# than forces user to enter year and time in correct format
+# returns added record
+def adding_new():
+    music = read()
+    artist = input("Enter Artist name: ")
+    album = input("Enter Album name: ")
+    name = (artist, album)
+    actual_year = int(time.strftime("%Y"))
+    year = None
+    if is_already_in_collection(name):
+        result = ("\nAlbum already in collection!")
+    else:
+        while year is None:
+            year = int(input("Enter year of release: "))
+            if year in range(1800, actual_year):
+                pass
+            else:
+                print("Year should be number from 1800 to", actual_year, "!\n")
+                year = None
+        genre = input("Enter genre: ")
+        length = time_input_guide()
+        information = (year, genre, length)
+        result = (name, information)
+        write(result)
+        print("\nSuccessfully added!")
+    return result
+
+
 # function used to find a record in db. Key is defining by what
 # we are searching. Returns all matching records in original form:
 # (list of touples, every touple contain two other touples)
 def find(key):
     keys = {2: "artist's name", 3: "year of release", 4: "album's name",
-            5: "genre", 6: "fragment of album name",
+            5: "genre", 6: "fragment of album's name",
             8: "genre", 9: "artist's name"}
     music = read()
     result = []
@@ -42,19 +72,19 @@ def find(key):
         value = input("Enter " + keys[key] + ": ")
         if key == 2 or key == 9:
             for record in music:
-                if record[0][0].lower() == value.lower():
+                if value.lower() in record[0][0].lower():
                     result.append(record)
         elif key == 3:
             for record in music:
-                if record[1][0].lower() == value.lower():
+                if value.lower() in record[1][0].lower():
                     result.append(record)
         elif key == 4:
             for record in music:
-                if record[0][1].lower() == value.lower():
-                    result.append(record)
+                if value.lower() in record[0][1].lower():
+                    result.append(record[0])
         elif key == 5 or key == 8:
             for record in music:
-                if record[1][1].lower() == value.lower():
+                if value.lower() in record[1][1].lower():
                     result.append(record)
         elif key == 6:
             for record in music:
@@ -90,17 +120,21 @@ def is_already_in_collection(name):
 # and formats it to nicer looking one for printing
 def join_record(record):
     row = []
-    for item in record:
-        if isinstance(item, (list, tuple)):
-            for i in item:
-                if isinstance(i, (list, tuple)):
-                    for x in i:
-                        row.append(x)
-                else:
-                    row.append(i)
-        else:
-            row.append(item)
-    return (' - '.join(row))
+    if isinstance(record, (list, tuple)):
+        for item in record:
+            if isinstance(item, (list, tuple)):
+                for i in item:
+                    if isinstance(i, (list, tuple)):
+                        for x in i:
+                            row.append(str(x))
+                    else:
+                        row.append(str(i))
+            else:
+                row.append(str(item))
+        row = ' - '.join(row)
+    else:
+        row = str(record)
+    return row
 
 
 # function which forces user to format correct time input,
@@ -138,6 +172,49 @@ def time_input_guide():
     return ':'.join(time)
 
 
+# function used to sort collection by age.
+#  Returns a list of album names with its age,
+#  sorted from yopungest or oldest, depends of user choice
+def sorting_by_age(youngest_first):
+    music = read()
+    actual_year = int(time.strftime("%Y"))
+    music_sort = []
+    music_unsort = []
+    result = []
+    for record in music:
+        try:  # ValueError handle situation when year of release is not correct
+            if int(record[1][0]) not in range(1800, actual_year + 1):
+                raise ValueError
+            else:
+                music_sort.append((record[0],
+                                   actual_year - int(record[1][0]),
+                                   "yo"))
+        except ValueError:
+            music_unsort.append((record[0], "Wrong year of release"))
+    message = "Starting from youngest:\n"
+    music_sort = sorted(music_sort, key=lambda x: x[1])
+    if youngest_first is False:
+        message = "Starting from oldest:\n"
+        music_sort = reversed(music_sort)
+    for record in music_sort:
+        result.append(record)
+    for record in music_unsort:
+        result.append(record)
+    return (message, result)
+
+
+# first make a tuple (org record, len of album in sec.) than sort it by length
+# returns list of tuples, sorted from shortest to longest album time.
+def sorting_by_length():
+    music = read()
+    result = []
+    for record in music:
+        result.append(
+              (record, sum(int(x) * 60 ** i for i, x in
+               enumerate(reversed(record[1][2].split(':'))))))
+    return sorted(result, key=lambda x: x[1])
+
+
 menu = '''\nWelcome in the CoolMusic! Choose the action:
 
    1) Add new album
@@ -160,35 +237,23 @@ while True:  # program main loop.
         action = input("\nChoose action ('M' to show menu): ")
 
         if action == "1":  # adding new definition
-            new_artist = input("Enter Artist name: ")
-            new_album = input("Enter Album name: ")
-            new_name = (new_artist, new_album)
-            music = read()
-            if is_already_in_collection(new_name):
-                print("\nAlbum already in collection!")
-            else:
-                new_year = input("Enter year of release: ")
-                new_genre = input("Enter genre: ")
-                new_length = time_input_guide()
-                new_information = (new_year, new_genre, new_length)
-                write((new_name, new_information))
-                print("\nSuccessfully added!")
-            print(join_record((new_name, new_information)))  # printing added
+            result = adding_new()
+            print(join_record(result))  # printing added
 
         #  all searching options works on one alghoritm. see funtion comment
-        elif action in ["2", "3", "4", "5", "6"]:  #
+        elif action in ["2", "3", "4", "5", "6"]:
             for record in find(int(action)):
                 print(join_record(record))
 
-        elif action == "7":  # printing all albums with added age of album
-            music = read()
-            actual_year = int(time.strftime("%Y"))
-            for record in music:
-                try:
-                    print(join_record(record[0]), "-",
-                          actual_year - int(record[1][0]), "yo")
-                except ValueError:
-                    print(join_record(record[0]), "- Wrong year of release")
+        # showing age of albums. for more, see sorting_by_age() comment
+        elif action == "7":  # first expect user choice of sorting method
+            if input("Enter 'Y' to sort from youngest: ").lower() == "y":
+                result = sorting_by_age(youngest_first=True)
+            else:
+                result = sorting_by_age(youngest_first=False)
+            print(result[0])
+            for record in result[1]:
+                print(join_record(record))
 
         # random album by genre. Uses find(),
         # than chose random from result list
@@ -206,18 +271,11 @@ while True:  # program main loop.
             if len(result) > 0:
                 print(len(result), "album(s)")
 
-        # finds a longest album.
-        # first make a tuple (orginal record, length of album in sec.)
-        # than sort by length, and returns orginal record of sorted tuple
+        # result is a list of tuples (record, len in sec.).
+        # sorted from shortest, so [-1] gives us the longest.
         elif action == "10":
-            music = read()
-            music_sort = []
-            for record in music:
-                music_sort.append(
-                      (record, sum(int(x) * 60 ** i for i, x in
-                       enumerate(reversed(record[1][2].split(':'))))))
-            music_sort = sorted(music_sort, key=lambda x: x[1])
-            print(join_record(music_sort[-1][0]))
+            result = sorting_by_length()
+            print(join_record(result[-1][0]))
 
         elif action.lower() == "m":  # printing menu
             print(menu)
@@ -225,7 +283,7 @@ while True:  # program main loop.
         elif action == "0":  # goodbye
             sys.exit("\nYou have exited a collector")
 
-        else:  # for entering command out of menu
+        else:  # to handle entering command out of menu
             print("\nWrong choose!\nTry again")
 
     # KI and EOFE causes program quiting, FNFE allows to create a new file
